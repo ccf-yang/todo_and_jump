@@ -1,0 +1,29 @@
+# Flutter / Dart
+.dart_tool/
+.dart/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# 平台目录在 CI 里用 flutter create 现生成，不入库
+ios/
+android/
+web/
+linux/
+macos/
+windows/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地/敏感
+.env
+doc/
+
+# 需求与设计文档：内含隐藏跳转逻辑说明，默认不进仓库；需要留档就从下面删掉这三行
+request.txt
+ui.html
+daemon_workflow.txt
