@@ -25,11 +25,25 @@ class ListPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LargeTitleBar('待办', action: AddButton(onPressed: () => _onAdd(context, ref, mode))),
+            LargeTitleBar('待办', action: _actions(context, ref, mode)),
             Expanded(child: mode == AppMode.todo ? _todoList(context, ref) : _userList(context, ref)),
           ],
         ),
       ),
+    );
+  }
+
+  /// 顶部右侧操作区：T 模式在「+」左边多一个导出按钮，待办模式只有「+」。
+  Widget _actions(BuildContext context, WidgetRef ref, AppMode mode) {
+    final add = AddButton(onPressed: () => _onAdd(context, ref, mode));
+    if (mode != AppMode.twitter) return add;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ExportButton(onPressed: () => _exportUsers(context, ref)),
+        const SizedBox(width: 10),
+        add,
+      ],
     );
   }
 
@@ -69,44 +83,37 @@ class ListPage extends ConsumerWidget {
   Widget _userList(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersProvider);
     if (users.isEmpty) return const Center(child: EmptyState());
-    return Column(
-      children: [
-        Expanded(
-          child: _card(
-            child: ReorderableListView.builder(
-              buildDefaultDragHandles: false,
-              padding: EdgeInsets.zero,
-              itemCount: users.length,
-              onReorder: (from, to) => ref.read(usersProvider.notifier).reorder(from, to),
-              itemBuilder: (context, index) {
-                final user = users[index];
-                return ReorderableDelayedDragStartListener(
-                  key: ValueKey('user-${user.id}'),
-                  index: index,
-                  child: Dismissible(
-                    key: ValueKey('dis-${user.id}'),
-                    direction: DismissDirection.endToStart,
-                    background: slidingDeleteBackground(),
-                    onDismissed: (_) => ref.read(usersProvider.notifier).remove(user.id),
-                    child: _row(
-                      index,
-                      UserTile(handle: user.handle, onTap: () => _openUser(context, user.handle)),
-                    ),
-                  ),
-                );
-              },
+    return _card(
+      child: ReorderableListView.builder(
+        buildDefaultDragHandles: false,
+        padding: EdgeInsets.zero,
+        itemCount: users.length,
+        onReorder: (from, to) => ref.read(usersProvider.notifier).reorder(from, to),
+        itemBuilder: (context, index) {
+          final user = users[index];
+          return ReorderableDelayedDragStartListener(
+            key: ValueKey('user-${user.id}'),
+            index: index,
+            child: Dismissible(
+              key: ValueKey('dis-${user.id}'),
+              direction: DismissDirection.endToStart,
+              background: slidingDeleteBackground(),
+              onDismissed: (_) => ref.read(usersProvider.notifier).remove(user.id),
+              child: _row(
+                index,
+                UserTile(handle: user.handle, onTap: () => _openUser(context, user.handle)),
+              ),
             ),
-          ),
-        ),
-        _ExportBar(handles: users.map((e) => e.handle).toList()),
-      ],
+          );
+        },
+      ),
     );
   }
 
-  /// 白色圆角卡片容器；底部留白，避免最后一条被 Tab 栏挡住。
+  /// 白色圆角卡片容器；底部留一点呼吸空间即可（内容本就显示在 Tab 栏之上）。
   Widget _card({required Widget child}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.hMargin, 0, AppSizes.hMargin, 100),
+      padding: const EdgeInsets.fromLTRB(AppSizes.hMargin, 0, AppSizes.hMargin, 24),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.card,
@@ -179,37 +186,16 @@ class ListPage extends ConsumerWidget {
         showToast(context, '无法打开：$handle');
     }
   }
-}
 
-/// T 模式列表底部的导出条：把全部用户名（每行一个）复制到剪贴板。
-class _ExportBar extends ConsumerWidget {
-  const _ExportBar({required this.handles});
-
-  final List<String> handles;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.hMargin, 0, AppSizes.hMargin, 16),
-      child: GestureDetector(
-        onTap: () async {
-          await Clipboard.setData(ClipboardData(text: handles.join('\n')));
-          if (context.mounted) showToast(context, '已导出 ${handles.length} 个用户名');
-        },
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppSizes.cardRadius),
-            boxShadow: const [
-              BoxShadow(color: Color(0x14000000), blurRadius: 2, offset: Offset(0, 1)),
-            ],
-          ),
-          child: const Center(
-            child: Text('导出全部用户名', style: TextStyle(fontSize: 16, color: AppColors.accent)),
-          ),
-        ),
-      ),
-    );
+  /// 把全部用户名（每行一个）复制到剪贴板。
+  Future<void> _exportUsers(BuildContext context, WidgetRef ref) async {
+    final handles = ref.read(usersProvider).map((e) => e.handle).toList();
+    if (handles.isEmpty) {
+      showToast(context, '暂无可导出的用户名');
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: handles.join('\n')));
+    if (!context.mounted) return;
+    showToast(context, '已导出 ${handles.length} 个用户名');
   }
 }

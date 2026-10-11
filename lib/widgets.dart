@@ -159,6 +159,26 @@ class AddButton extends StatelessWidget {
   }
 }
 
+/// 顶部导出按钮：与 AddButton 同样尺寸，放在「+」旁边（仅 T 模式）。
+class ExportButton extends StatelessWidget {
+  const ExportButton({required this.onPressed, super.key});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: const BoxDecoration(color: AppColors.chipBg, shape: BoxShape.circle),
+        child: const Icon(CupertinoIcons.square_arrow_up, size: 18, color: AppColors.accent),
+      ),
+    );
+  }
+}
+
 class TodoTile extends StatelessWidget {
   const TodoTile({required this.todo, required this.onTap, super.key});
 
