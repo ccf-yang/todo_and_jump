@@ -13,14 +13,20 @@ class PrefsRepository {
   static const _modeKey = 'todo.mode';
   static const _todosKey = 'todo.todos';
   static const _usersKey = 'todo.users';
+  static const _instagramUsersKey = 'todo.instagram_users';
 
   final SharedPreferences _prefs;
 
   static Future<PrefsRepository> open() async =>
       PrefsRepository(await SharedPreferences.getInstance());
 
-  AppMode loadMode() =>
-      _prefs.getString(_modeKey) == AppMode.twitter.name ? AppMode.twitter : AppMode.todo;
+  AppMode loadMode() {
+    final name = _prefs.getString(_modeKey);
+    return AppMode.values.firstWhere(
+      (m) => m.name == name,
+      orElse: () => AppMode.todo,
+    );
+  }
 
   Future<void> saveMode(AppMode mode) => _prefs.setString(_modeKey, mode.name);
 
@@ -31,10 +37,15 @@ class PrefsRepository {
         jsonEncode(todos.map((e) => e.toJson()).toList()),
       );
 
-  List<TwitterUser> loadUsers() => _decodeList(_prefs.getString(_usersKey), TwitterUser.fromJson);
+  /// T / I 两份用户列表各存各的，互不干扰。
+  static String usersKeyFor(AppMode mode) =>
+      mode == AppMode.instagram ? _instagramUsersKey : _usersKey;
 
-  Future<void> saveUsers(List<TwitterUser> users) => _prefs.setString(
-        _usersKey,
+  List<TwitterUser> loadUsers(AppMode mode) =>
+      _decodeList(_prefs.getString(usersKeyFor(mode)), TwitterUser.fromJson);
+
+  Future<void> saveUsers(AppMode mode, List<TwitterUser> users) => _prefs.setString(
+        usersKeyFor(mode),
         jsonEncode(users.map((e) => e.toJson()).toList()),
       );
 

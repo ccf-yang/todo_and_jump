@@ -56,9 +56,10 @@ int _nextId(List<Todo> items) => items.fold<int>(0, (max, e) => e.id > max ? e.i
 
 final todosProvider = NotifierProvider<TodosController, List<Todo>>(TodosController.new);
 
-class UsersController extends Notifier<List<TwitterUser>> {
+/// T / I 两种社交跳转页各持一份用户列表：按 [AppMode] 走 family 隔离存储。
+class SocialUsersController extends FamilyNotifier<List<TwitterUser>, AppMode> {
   @override
-  List<TwitterUser> build() => ref.read(prefsProvider).loadUsers();
+  List<TwitterUser> build(AppMode arg) => ref.read(prefsProvider).loadUsers(arg);
 
   /// 导入一批 handle：跳过已存在的（不区分大小写），只追加新的；返回新增条数。
   Future<int> import(List<String> handles) async {
@@ -83,11 +84,13 @@ class UsersController extends Notifier<List<TwitterUser>> {
 
   Future<void> _write(List<TwitterUser> next) async {
     state = next;
-    await ref.read(prefsProvider).saveUsers(next);
+    await ref.read(prefsProvider).saveUsers(arg, next);
   }
 }
 
 int _nextUserId(List<TwitterUser> items) =>
     items.fold<int>(0, (max, e) => e.id > max ? e.id : max) + 1;
 
-final usersProvider = NotifierProvider<UsersController, List<TwitterUser>>(UsersController.new);
+final socialUsersProvider = NotifierProvider.family<SocialUsersController, List<TwitterUser>, AppMode>(
+  SocialUsersController.new,
+);

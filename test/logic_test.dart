@@ -4,12 +4,16 @@ import 'package:todo/logic.dart';
 
 void main() {
   group('parseNote', () {
-    test('带 w 后缀进跳转模式，纯数字回待办模式', () {
+    test('2w 进 T 跳转页，3w 进 I 跳转页，纯数字回待办模式', () {
       expect(parseNote('2w'), AppMode.twitter);
-      expect(parseNote('3W'), AppMode.twitter);
-      expect(parseNote('0w'), AppMode.twitter);
+      expect(parseNote('3W'), AppMode.instagram);
       expect(parseNote('1'), AppMode.todo);
       expect(parseNote('12'), AppMode.todo);
+    });
+
+    test('未认识的数字+w 不处理（返回 null）', () {
+      expect(parseNote('0w'), isNull);
+      expect(parseNote('4w'), isNull);
     });
 
     test('前后空白会被忽略', () {
@@ -53,6 +57,17 @@ void main() {
 
     test('链接里带路径只取用户名段', () {
       expect(parseHandles('https://twitter.com/intent/follow?screen_name=jack'), ['intent']);
+    });
+
+    test('instagram：允许点号、上限 30、认 instagram.com 链接', () {
+      expect(
+        parseHandles('a.b_c\nhttps://www.instagram.com/some.user/\n@plain_name', instagram: true),
+        ['a.b_c', 'some.user', 'plain_name'],
+      );
+      // 点号在 twitter 规则下非法，在 IG 规则下合法。
+      expect(parseHandles('some.user'), isEmpty);
+      // IG 链接尾部多余的斜杠/句点会被清掉。
+      expect(parseHandles('instagram.com/xx/', instagram: true), ['xx']);
     });
   });
 

@@ -98,9 +98,9 @@ jobs:
           PY
           /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" ios/Flutter/AppFrameworkInfo.plist || true
 
-      # 这个 App 表面是待办，跳转靠 twitter:// scheme。iOS 上 canLaunchUrl 只认
-      # Info.plist 里 LSApplicationQueriesSchemes 声明过的 scheme，不列上 twitter
-      # 就会误判「打不开」而直接退到网页，所以这一步是必须的。
+      # 这个 App 表面是待办，跳转靠 twitter:// 与 instagram:// scheme。iOS 上
+      # canLaunchUrl 只认 Info.plist 里 LSApplicationQueriesSchemes 声明过的 scheme，
+      # 不列上就会误判「打不开」而直接退到网页，所以这一步是必须的。
       - name: Patch Info.plist
         run: |
           PLIST=ios/Runner/Info.plist
@@ -109,6 +109,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Delete :LSApplicationQueriesSchemes" "$PLIST" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :LSApplicationQueriesSchemes array" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :LSApplicationQueriesSchemes:0 string twitter" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSApplicationQueriesSchemes:1 string instagram" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :LSApplicationQueriesSchemes" "$PLIST"
 

@@ -34,7 +34,7 @@ class ListPage extends ConsumerWidget {
                 padding: EdgeInsets.only(bottom: tabClearance),
                 child: mode == AppMode.todo
                     ? _todoList(context, ref)
-                    : _userList(context, ref),
+                    : _userList(context, ref, mode),
               ),
             ),
           ],
@@ -43,14 +43,14 @@ class ListPage extends ConsumerWidget {
     );
   }
 
-  /// 顶部右侧操作区：T 模式在「+」左边多一个导出按钮，待办模式只有「+」。
+  /// 顶部右侧操作区：社交跳转页（T / I）在「+」左边多一个导出按钮，待办模式只有「+」。
   Widget _actions(BuildContext context, WidgetRef ref, AppMode mode) {
     final add = AddButton(onPressed: () => _onAdd(context, ref, mode));
-    if (mode != AppMode.twitter) return add;
+    if (!isSocialMode(mode)) return add;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ExportButton(onPressed: () => _exportUsers(context, ref)),
+        ExportButton(onPressed: () => _exportUsers(context, ref, mode)),
         const SizedBox(width: 10),
         add,
       ],
@@ -92,8 +92,9 @@ class ListPage extends ConsumerWidget {
     );
   }
 
-  Widget _userList(BuildContext context, WidgetRef ref) {
-    final users = ref.watch(usersProvider);
+  Widget _userList(BuildContext context, WidgetRef ref, AppMode mode) {
+    final provider = socialUsersProvider(mode);
+    final users = ref.watch(provider);
     if (users.isEmpty) return const Center(child: EmptyState());
     return _card(
       child: ReorderableListView.builder(
@@ -102,20 +103,20 @@ class ListPage extends ConsumerWidget {
         padding: EdgeInsets.zero,
         physics: const ClampingScrollPhysics(),
         itemCount: users.length,
-        onReorder: (from, to) => ref.read(usersProvider.notifier).reorder(from, to),
+        onReorder: (from, to) => ref.read(provider.notifier).reorder(from, to),
         itemBuilder: (context, index) {
           final user = users[index];
           return ReorderableDelayedDragStartListener(
-            key: ValueKey('user-${user.id}'),
+            key: ValueKey('${mode.name}-user-${user.id}'),
             index: index,
             child: Dismissible(
-              key: ValueKey('dis-${user.id}'),
+              key: ValueKey('${mode.name}-dis-${user.id}'),
               direction: DismissDirection.endToStart,
               background: slidingDeleteBackground(),
-              onDismissed: (_) => ref.read(usersProvider.notifier).remove(user.id),
+              onDismissed: (_) => ref.read(provider.notifier).remove(user.id),
               child: _row(
                 index,
-                UserTile(handle: user.handle, onTap: () => _openUser(context, user.handle)),
+                UserTile(handle: user.handle, onTap: () => _openUser(context, mode, user.handle)),
               ),
             ),
           );
@@ -171,6 +172,7 @@ class ListPage extends ConsumerWidget {
       if (!context.mounted) return;
       showToast(context, added == 0 ? '没有新的内容' : '已添加');
     } else {
+      final instagram = mode == AppMode.instagram;
       final raw = await showInputSheet(
         context,
         title: '导入用户',
@@ -178,33 +180,33 @@ class ListPage extends ConsumerWidget {
         placeholder: '每行一个用户名或主页链接',
       );
       if (raw == null || !context.mounted) return;
-      final handles = parseHandles(raw);
+      final handles = parseHandles(raw, instagram: instagram);
       if (handles.isEmpty) {
         showToast(context, '没有新的内容');
         return;
       }
-      final added = await ref.read(usersProvider.notifier).import(handles);
+      final added = await ref.read(socialUsersProvider(mode).notifier).import(handles);
       if (!context.mounted) return;
       showToast(context, added == 0 ? '没有新的内容' : '已导入');
     }
   }
 
-  Future<void> _openUser(BuildContext context, String handle) async {
-    final outcome = await openTwitter(handle);
+  Future<void> _openUser(BuildContext context, AppMode mode, String handle) async {
+    final outcome = await openSocialUser(mode, handle);
     if (!context.mounted) return;
     switch (outcome) {
       case LaunchOutcome.opened:
         break;
       case LaunchOutcome.webOpened:
-        showToast(context, '未找到 T 客户端，已用浏览器打开');
+        showToast(context, '未找到客户端，已用浏览器打开');
       case LaunchOutcome.failed:
         showToast(context, '无法打开：$handle');
     }
   }
 
   /// 把全部用户名（每行一个）复制到剪贴板。
-  Future<void> _exportUsers(BuildContext context, WidgetRef ref) async {
-    final handles = ref.read(usersProvider).map((e) => e.handle).toList();
+  Future<void> _exportUsers(BuildContext context, WidgetRef ref, AppMode mode) async {
+    final handles = ref.read(socialUsersProvider(mode)).map((e) => e.handle).toList();
     if (handles.isEmpty) {
       showToast(context, '暂无可导出的用户名');
       return;
