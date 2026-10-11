@@ -46,3 +46,16 @@ List<String> splitTodoLines(String raw) => raw
     .map((line) => line.trim())
     .where((line) => line.isNotEmpty)
     .toList();
+
+/// 按 ReorderableListView 的索引语义重排：`newIndex` 是「移除 oldIndex 之前」的下标，
+/// 所以向下移动时要先减一。越界与非法下标都安全返回原序。
+List<T> reorderList<T>(List<T> items, int oldIndex, int newIndex) {
+  final result = [...items];
+  if (oldIndex < 0 || oldIndex >= result.length) return result;
+  var target = newIndex;
+  final moved = result.removeAt(oldIndex);
+  if (target > oldIndex) target -= 1;
+  target = target.clamp(0, result.length);
+  result.insert(target, moved);
+  return result;
+}

@@ -160,17 +160,15 @@ class AddButton extends StatelessWidget {
 }
 
 class TodoTile extends StatelessWidget {
-  const TodoTile({required this.todo, required this.onTap, required this.onLongPress, super.key});
+  const TodoTile({required this.todo, required this.onTap, super.key});
 
   final Todo todo;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     return _PressableRow(
       onTap: onTap,
-      onLongPress: onLongPress,
       child: Row(
         children: [
           _CheckBox(done: todo.done),
@@ -192,17 +190,15 @@ class TodoTile extends StatelessWidget {
 }
 
 class UserTile extends StatelessWidget {
-  const UserTile({required this.handle, required this.onTap, required this.onLongPress, super.key});
+  const UserTile({required this.handle, required this.onTap, super.key});
 
   final String handle;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     return _PressableRow(
       onTap: onTap,
-      onLongPress: onLongPress,
       child: Row(
         children: [
           Expanded(
@@ -219,18 +215,16 @@ class UserTile extends StatelessWidget {
 }
 
 class _PressableRow extends StatelessWidget {
-  const _PressableRow({required this.child, required this.onTap, required this.onLongPress});
+  const _PressableRow({required this.child, required this.onTap});
 
   final Widget child;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      onLongPress: onLongPress,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AppSizes.tileMinHeight),
         child: Padding(padding: AppSizes.tilePadding, child: child),
@@ -307,7 +301,6 @@ class SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PressableRow(
       onTap: onTap ?? () {},
-      onLongPress: () {},
       child: Row(
         children: [
           Expanded(child: Text(title, style: const TextStyle(fontSize: 17, color: AppColors.text))),
@@ -466,24 +459,12 @@ class _SheetButton extends StatelessWidget {
   }
 }
 
-/// 长按删除的系统确认框。
-Future<bool> showDeleteConfirm(BuildContext context, {String title = '删除？'}) async {
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => CupertinoAlertDialog(
-      title: Text(title),
-      actions: [
-        CupertinoDialogAction(
-          child: const Text('取消'),
-          onPressed: () => Navigator.pop(dialogContext, false),
-        ),
-        CupertinoDialogAction(
-          isDestructiveAction: true,
-          child: const Text('删除'),
-          onPressed: () => Navigator.pop(dialogContext, true),
-        ),
-      ],
-    ),
+/// 左滑删除时露出的红色底。
+Widget slidingDeleteBackground() {
+  return Container(
+    color: const Color(0xFFFF3B30),
+    alignment: Alignment.centerRight,
+    padding: const EdgeInsets.only(right: 22),
+    child: const Icon(CupertinoIcons.trash, color: Colors.white, size: 22),
   );
-  return result ?? false;
 }

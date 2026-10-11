@@ -62,4 +62,23 @@ void main() {
       expect(splitTodoLines('   '), isEmpty);
     });
   });
+
+  group('reorderList', () {
+    test('上移：把末条拖到最前', () {
+      expect(reorderList(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b']);
+    });
+
+    test('下移到末尾：newIndex 传列表长度', () {
+      expect(reorderList(['a', 'b', 'c'], 0, 3), ['b', 'c', 'a']);
+    });
+
+    test('往下挪一格（newIndex=oldIndex+1）等于原地不动', () {
+      expect(reorderList(['a', 'b', 'c'], 0, 1), ['a', 'b', 'c']);
+    });
+
+    test('越界下标安全返回原序', () {
+      expect(reorderList(['a', 'b'], 5, 0), ['a', 'b']);
+      expect(reorderList(['a', 'b'], -1, 0), ['a', 'b']);
+    });
+  });
 }

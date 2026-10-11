@@ -1,9 +1,13 @@
+// 保留 onReorder：onReorderItem 会自动调整 newIndex，而 reorderList 已按旧语义手动
+// 处理「下移减一」，两者都用会双重调整。deprecation 仅 info，CI 用 --no-fatal-infos 容忍。
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'controllers.dart';
 import 'logic.dart';
-import 'models.dart';
 import 'theme.dart';
 import 'twitter_launcher.dart';
 import 'widgets.dart';
@@ -32,17 +36,32 @@ class ListPage extends ConsumerWidget {
   Widget _todoList(BuildContext context, WidgetRef ref) {
     final todos = ref.watch(todosProvider);
     if (todos.isEmpty) return const Center(child: EmptyState());
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: ListCard(
-        children: [
-          for (final todo in todos)
-            TodoTile(
-              todo: todo,
-              onTap: () => ref.read(todosProvider.notifier).toggle(todo.id),
-              onLongPress: () => _deleteTodo(context, ref, todo),
+    return _card(
+      child: ReorderableListView.builder(
+        buildDefaultDragHandles: false,
+        padding: EdgeInsets.zero,
+        itemCount: todos.length,
+        onReorder: (from, to) => ref.read(todosProvider.notifier).reorder(from, to),
+        itemBuilder: (context, index) {
+          final todo = todos[index];
+          return ReorderableDelayedDragStartListener(
+            key: ValueKey('todo-${todo.id}'),
+            index: index,
+            child: Dismissible(
+              key: ValueKey('dis-${todo.id}'),
+              direction: DismissDirection.endToStart,
+              background: slidingDeleteBackground(),
+              onDismissed: (_) => ref.read(todosProvider.notifier).remove(todo.id),
+              child: _row(
+                index,
+                TodoTile(
+                  todo: todo,
+                  onTap: () => ref.read(todosProvider.notifier).toggle(todo.id),
+                ),
+              ),
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -50,18 +69,65 @@ class ListPage extends ConsumerWidget {
   Widget _userList(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersProvider);
     if (users.isEmpty) return const Center(child: EmptyState());
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: ListCard(
-        children: [
-          for (final user in users)
-            UserTile(
-              handle: user.handle,
-              onTap: () => _openUser(context, user.handle),
-              onLongPress: () => _deleteUser(context, ref, user),
+    return Column(
+      children: [
+        Expanded(
+          child: _card(
+            child: ReorderableListView.builder(
+              buildDefaultDragHandles: false,
+              padding: EdgeInsets.zero,
+              itemCount: users.length,
+              onReorder: (from, to) => ref.read(usersProvider.notifier).reorder(from, to),
+              itemBuilder: (context, index) {
+                final user = users[index];
+                return ReorderableDelayedDragStartListener(
+                  key: ValueKey('user-${user.id}'),
+                  index: index,
+                  child: Dismissible(
+                    key: ValueKey('dis-${user.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: slidingDeleteBackground(),
+                    onDismissed: (_) => ref.read(usersProvider.notifier).remove(user.id),
+                    child: _row(
+                      index,
+                      UserTile(handle: user.handle, onTap: () => _openUser(context, user.handle)),
+                    ),
+                  ),
+                );
+              },
             ),
-        ],
+          ),
+        ),
+        _ExportBar(handles: users.map((e) => e.handle).toList()),
+      ],
+    );
+  }
+
+  /// 白色圆角卡片容器；底部留白，避免最后一条被 Tab 栏挡住。
+  Widget _card({required Widget child}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSizes.hMargin, 0, AppSizes.hMargin, 100),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+          boxShadow: const [
+            BoxShadow(color: Color(0x14000000), blurRadius: 2, offset: Offset(0, 1)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: child,
       ),
+    );
+  }
+
+  Widget _row(int index, Widget tile) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (index > 0) const InsetDivider(),
+        tile,
+      ],
     );
   }
 
@@ -101,18 +167,6 @@ class ListPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _deleteTodo(BuildContext context, WidgetRef ref, Todo todo) async {
-    if (await showDeleteConfirm(context, title: '删除这条待办？')) {
-      await ref.read(todosProvider.notifier).remove(todo.id);
-    }
-  }
-
-  Future<void> _deleteUser(BuildContext context, WidgetRef ref, TwitterUser user) async {
-    if (await showDeleteConfirm(context, title: '删除该用户？')) {
-      await ref.read(usersProvider.notifier).remove(user.id);
-    }
-  }
-
   Future<void> _openUser(BuildContext context, String handle) async {
     final outcome = await openTwitter(handle);
     if (!context.mounted) return;
@@ -120,9 +174,42 @@ class ListPage extends ConsumerWidget {
       case LaunchOutcome.opened:
         break;
       case LaunchOutcome.webOpened:
-        showToast(context, '未找到 Twitter 客户端，已用浏览器打开');
+        showToast(context, '未找到 T 客户端，已用浏览器打开');
       case LaunchOutcome.failed:
-        showToast(context, '无法打开：https://twitter.com/$handle');
+        showToast(context, '无法打开：$handle');
     }
+  }
+}
+
+/// T 模式列表底部的导出条：把全部用户名（每行一个）复制到剪贴板。
+class _ExportBar extends ConsumerWidget {
+  const _ExportBar({required this.handles});
+
+  final List<String> handles;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSizes.hMargin, 0, AppSizes.hMargin, 16),
+      child: GestureDetector(
+        onTap: () async {
+          await Clipboard.setData(ClipboardData(text: handles.join('\n')));
+          if (context.mounted) showToast(context, '已导出 ${handles.length} 个用户名');
+        },
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+            boxShadow: const [
+              BoxShadow(color: Color(0x14000000), blurRadius: 2, offset: Offset(0, 1)),
+            ],
+          ),
+          child: const Center(
+            child: Text('导出全部用户名', style: TextStyle(fontSize: 16, color: AppColors.accent)),
+          ),
+        ),
+      ),
+    );
   }
 }

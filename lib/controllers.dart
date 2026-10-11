@@ -44,6 +44,8 @@ class TodosController extends Notifier<List<Todo>> {
 
   Future<void> remove(int id) async => _write(state.where((e) => e.id != id).toList());
 
+  Future<void> reorder(int from, int to) async => _write(reorderList(state, from, to));
+
   Future<void> _write(List<Todo> next) async {
     state = next;
     await ref.read(prefsProvider).saveTodos(next);
@@ -76,6 +78,8 @@ class UsersController extends Notifier<List<TwitterUser>> {
   }
 
   Future<void> remove(int id) async => _write(state.where((e) => e.id != id).toList());
+
+  Future<void> reorder(int from, int to) async => _write(reorderList(state, from, to));
 
   Future<void> _write(List<TwitterUser> next) async {
     state = next;
