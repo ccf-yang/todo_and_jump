@@ -18,6 +18,9 @@ class ListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(modeProvider);
+    // 列表内容会一路延伸到屏幕底部、探到半透明 Tab 栏后面，这里预留出 Tab 栏
+    // 的高度再加一点呼吸空间，保证最后一条能完整滚到 Tab 栏上方、不会弹回藏住。
+    final tabClearance = 49 + MediaQuery.paddingOf(context).bottom + 16;
     return CupertinoPageScaffold(
       backgroundColor: AppColors.scaffold,
       child: SafeArea(
@@ -26,7 +29,14 @@ class ListPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             LargeTitleBar('待办', action: _actions(context, ref, mode)),
-            Expanded(child: mode == AppMode.todo ? _todoList(context, ref) : _userList(context, ref)),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: tabClearance),
+                child: mode == AppMode.todo
+                    ? _todoList(context, ref)
+                    : _userList(context, ref),
+              ),
+            ),
           ],
         ),
       ),
@@ -53,7 +63,9 @@ class ListPage extends ConsumerWidget {
     return _card(
       child: ReorderableListView.builder(
         buildDefaultDragHandles: false,
+        shrinkWrap: true,
         padding: EdgeInsets.zero,
+        physics: const ClampingScrollPhysics(),
         itemCount: todos.length,
         onReorder: (from, to) => ref.read(todosProvider.notifier).reorder(from, to),
         itemBuilder: (context, index) {
@@ -86,7 +98,9 @@ class ListPage extends ConsumerWidget {
     return _card(
       child: ReorderableListView.builder(
         buildDefaultDragHandles: false,
+        shrinkWrap: true,
         padding: EdgeInsets.zero,
+        physics: const ClampingScrollPhysics(),
         itemCount: users.length,
         onReorder: (from, to) => ref.read(usersProvider.notifier).reorder(from, to),
         itemBuilder: (context, index) {
@@ -110,10 +124,11 @@ class ListPage extends ConsumerWidget {
     );
   }
 
-  /// 白色圆角卡片容器；底部留一点呼吸空间即可（内容本就显示在 Tab 栏之上）。
+  /// 白色圆角卡片容器。高度随内容收缩（列表 shrinkWrap），底部留白统一由
+  /// build 里的 tabClearance 负责，避免最后一条探到 Tab 栏后面。
   Widget _card({required Widget child}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.hMargin, 0, AppSizes.hMargin, 24),
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.hMargin),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.card,
@@ -196,6 +211,6 @@ class ListPage extends ConsumerWidget {
     }
     await Clipboard.setData(ClipboardData(text: handles.join('\n')));
     if (!context.mounted) return;
-    showToast(context, '已导出 ${handles.length} 个用户名');
+    showToast(context, '已导出 ${handles.length} 个用户名到剪贴板');
   }
 }

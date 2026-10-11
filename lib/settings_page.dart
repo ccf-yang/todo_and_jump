@@ -93,34 +93,39 @@ class _NoteFieldState extends ConsumerState<_NoteField> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 48),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          const Text('备注', style: TextStyle(fontSize: 17, color: AppColors.text)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              textAlign: TextAlign.right,
-              textInputAction: TextInputAction.done,
-              style: const TextStyle(fontSize: 16, color: AppColors.text),
-              onChanged: (_) {},
-              onSubmitted: _commit,
-              decoration: const InputDecoration(
-                isCollapsed: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                hintText: '备注',
-                hintStyle: TextStyle(fontSize: 16, color: AppColors.placeholder),
+    return GestureDetector(
+      // 整行都可点：光点在右侧文字区之外（如「备注」标签）时也能唤起输入。
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _focusNode.hasFocus ? null : FocusScope.of(context).requestFocus(_focusNode),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            const Text('备注', style: TextStyle(fontSize: 17, color: AppColors.text)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                textAlign: TextAlign.right,
+                textInputAction: TextInputAction.done,
+                style: const TextStyle(fontSize: 16, color: AppColors.text),
+                onChanged: (_) {},
+                onSubmitted: _commit,
+                decoration: const InputDecoration(
+                  isCollapsed: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hintText: '备注',
+                  hintStyle: TextStyle(fontSize: 16, color: AppColors.placeholder),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
